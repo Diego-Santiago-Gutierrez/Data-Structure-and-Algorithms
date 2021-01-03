@@ -2,17 +2,31 @@ import Database
 from time import perf_counter
 import sys
 import random as rdn
-import random
-import time
+
 #from Database import Usuario
 
-usrList = Database.Usuario.GetUsuariosDB(1000)
+usrList = Database.Usuario.GetUsuariosDB(600)
    
 """"""""""""""""""
 
 def creteTableHash(m): 
-    HashTable = [None] * m         #Creamos una tabla Hash con m elementos
-    return HashTable                            #Estos elementos serán vacios []                        #CLAVE PRUEBA# AUN TENGO QUE AGREGAR ELEMENTOS UNU
+    HashTable = [ [] for _ in range(m) ]        #Creamos una tabla Hash con m elementos
+    return HashTable                            #Estos elementos serán vacios []
+
+tablaCreada=(creteTableHash(20))                 #CLAVE PRUEBA# AUN TENGO QUE AGREGAR ELEMENTOS UNU
+
+""""""""""""""""""
+
+def display_hash(tablaCreada):                  #Funcion que imprime la tabla en pantalla
+      
+    for i in range(len(tablaCreada)):           #Recorre el tamaño de la lista creada
+        print(i, end = " ")                     #Imprime los lugares del arreglo 
+
+        for j in tablaCreada[i]:                #Recorres tablaCreada en el indice i    
+            print("-->", end = " ")       
+            print(j, end = " ")                 #Muestra a j, que es el objeto 
+              
+        print()                                 #Lo imprime 
 
 """"""""""""""""""
 
@@ -22,102 +36,118 @@ def Hashing(keyvalue):
         suma = suma + ord(item)
         
     key = (( ( ( 49 * suma ) + 689 ) % 999983 ) % len((tablaCreada)))
+    #print("KEY", key)
+    #print("tamaño de la pendeja tabla", len(listaCreada))
     return key
     
 """"""""""""""""""
 
 def insert(tablaCreada, keyvalue, nameValue):       #Inserta los elementos dentro de la tabla Hashing 
                                                 #Recibe la tabla creada, el valor de la llave para insertar y value es el dato que va insertar 
-    Lista = []
-    hash_key = Hashing(keyvalue)
-
-    if tablaCreada[hash_key] == None: 
-        tablaCreada[hash_key] = Lista
-                #La llave Hasheada 
-    tablaCreada[hash_key].append(nameValue)
-               #Se inserta value en tablaCreada en el indice de hash_key 
+    
+    hash_key = Hashing(keyvalue)                #La llave Hasheada 
+    tablaCreada[hash_key].append(nameValue)         #Se inserta value en tablaCreada en el indice de hash_key 
 
 """"""""""""""""""
 
 def searchElement(tablaCreada, keyvalue):
-
+    
     hash_key = Hashing(keyvalue)
 
-    if(tablaCreada[hash_key] is None):
-        return None
-    else:
-        for item in tablaCreada [hash_key]:
-            if item.username == keyvalue:
-                return item
+    name = "" 
+    for i in usrList: 
+        if(keyvalue == i.username): 
+            name = i.fullname
+        else: 
+            name = "Not matching found"
+
+    for i in range (len(tablaCreada[hash_key])):
+        if ( name in tablaCreada[hash_key][i] ):
+            return tablaCreada[hash_key][i], True, name
+        else: 
+            return "", False, name
             
 """""""""""""""""" 
+#Not match para cuando se sabe cuando niguno de los datos 
+# dentro de la base de datos danot match porqe si 
+# esta vacio quiere decir que cualquier elemetnoq ue 
+# sea string dara verdaero en la evaluacion 
 
 def login(tablaCreada, keyvalue, valuePasword):
     
-    print("--------------------------------------------")
-    print("LOGIN:   usr: " + keyvalue + "   pass: " + valuePasword)
-
     hash_key = Hashing(keyvalue)
 
     a = searchElement(tablaCreada, keyvalue)
-    print(a)
-    if (a == None): 
-        print("Usuario no existe: ") 
-    elif(a.password == valuePasword): 
-        print("ACCESO concedido: ", a.fullname)       
-    else: 
-        print("Acceso no autorizado contraseña incorrecta") 
+    print("--------------------------------------------")
+    print("LOGIN:   usr: " + keyvalue + "   pass: " + valuePasword)
+
+    if (a[1]):
+ 
+        #print("USUARIO EXISTE: ", a[0])
+        for item in usrList: 
+            if (valuePasword == item.password):
+                return print("ACCESO AUTORIZADO bienvenido: ", a[2]) 
+            else: 
+                return print("ACCESO DENEGADO:  contraseña incorrecta",  a[2])      
+    else:
+        print("USUARIO NO EXISTE", a[2]) 
 
     print("--------------------------------------------")
 
 """""""""""""""""" 
-def BusqLineal(list, keyusername):
-    for k in range(0, len(list)):
-        if ( list[k] is not None ):
-            for j in range(0 , len(list[k])):
-                if list[k][j].username == keyusername:
-                    return list[k][j]
-        else: continue
-    return None
-
-""""""""""""""""""
-def Compare(tablaHash, usrList):
-    sumLineal = sumHash = 0
-    for i in range(10):
-        usr = usrList[random.randint(0, len(usrList))].username
-        t1 = time.perf_counter()
-        e1 = searchElement(tablaHash, usr)
-        t2 = time.perf_counter()
-
-        t3 = time.perf_counter()
-        e2 = BusqLineal(tablaHash, usr)
-        t4 = time.perf_counter()
-        print("\nPara encontrar al usuario: "+ usr + " tardé:")
-        print("Con Busqueda Lineal:", t4 - t3, "\t Con Busqueda en Tabla Hash:", t2 - t1)
-        sumLineal += t4 - t3
-        sumHash += t2 - t1
-    print("\nEl tiempo promedio de 10 casos fue de: ")    
-    print("Para la Busqueda Lineal:", sumLineal/10)
-    print("Para la Busqueda en Tabla Hash:", sumHash/10)
-
-""""""""""""""""""
-tablaCreada= creteTableHash(999)
-usrList = Database.Usuario.GetUsuariosDB(1000)
 
 
 for item in usrList:
-    insert(tablaCreada, item.username, item)
+    insert(tablaCreada, item.username, item.fullname)
 
-login(tablaCreada, "mvicker23", "TNqqef")
-login(tablaCreada, "tnewborn6x", "FnZzuo")
-login(tablaCreada, "tnewborn6x", "123123")
-login(tablaCreada, "Jesus Cruz", "123123")
+#display_hash (tablaCreada) 
 
-print("Parámetros utilizados: \n a = 49\n b = 689\n p = 999983\n m (tamaño tabla) =", len(tablaCreada))
-f = len(usrList)/len(tablaCreada)
-print("Factor de carga: F =", f,"\n")
+a = login(tablaCreada, 'mvicker23', 'TNqqef')
+b = login(tablaCreada, 'tnewborn6x', 'FnZzio')
+c = login(tablaCreada, 'tnewborn6x', '12313')
+d = login(tablaCreada, 'Jesus Cruz', '12313')
 
-Compare(tablaCreada, usrList)
+print("-----------------------------------")             
 
 
-print("-----------------------------------")      
+t0 = perf_counter()
+#d = login(tablaCreada, 'cchezier0', 'bXukce')
+t1 = perf_counter()
+print("\tTiempo busqueda: {0:f} segundos", (t1 - t0))
+print("\t ", "\n")
+
+def BusqLineal(userList, username): 
+    for k in range (len(userList)):  
+        if userList[k] == username:
+            return k  
+    return "No existe"
+
+x = 0
+y = 0
+t1 = 0
+t2 = 0
+linealTime = 0
+time = 0 
+
+for x in range(10):
+
+    n = rdn.randint(0,999)
+    t1 = perf_counter()
+    a = BusqLineal(tablaCreada, tablaCreada[n].username)
+    t2 = perf_counter()
+
+    linealTime = linealTime + (t2 - t1)
+
+print("El promedio del tiempo de la busqueda lineal es:" , (linealTime / 10))
+
+
+for y in range(10):
+    n = rdn.randint(0,999)
+    t1 = perf_counter()
+    for item in usrList:
+        a = searchElement( tablaCreada , tablaCreada[n].username)
+    t2 = perf_counter()
+
+    time = linealTime + (t2 - t1)
+
+print("El tiempo promedio de la bsuqueda por Hash es de:" , (time / 10 ))
