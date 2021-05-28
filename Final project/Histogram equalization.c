@@ -3,185 +3,287 @@
 #include<stdlib.h>
 #include<omp.h>
 #include<math.h>
+
 //Stn master nos ayudará a manejar las imagenes 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb-master/stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb-master/stb_image_write.h"
+
 //Caracteristicas  de una imagen 
 #define COLOR_VALUE 256
-#define QUALITY 100 
-//Prototipo de funciones 
+#define QUALITY_IMAGE 100
 
-double equilizeImage_secuencial(unsigned char *srcIma);
-//void equilizeImage_paralell(unsigned char *srcIma);
+//FUNCIONES DE CONTROL SECUENCIAL-PARALELO
+double equalize_image_sequential(unsigned char *image, int width, int height, int channels, char *name_UNsuffix);
+double equalize_image_parallel(unsigned char *image, int width, int height, int number_of_channels, char *name_UNsuffix);
 
-unsigned char *empty_array_UC(long size);
+//-----------FUNCIONES COMPARTIDAS------------
+//############################################
+//ARREGLOS VACIOS
 long *empty_array_LONG(long size);
+unsigned char *empty_array_UC(long size);
+//RECONOCIMIENTO DE ARCHIVOS
+char *filename_UNsuffix(char *path);
+char *new_file(char *original, char *suffix);
+//VALOR MINIMO DEL CDF
+long min_cdf(long *original_histogram);
 
-long min_cdf_SEQUENTIAL(long *cdf);
 //----------------SECUENCIAL---------------// 
+//###########################################
+//GENERAR ARCHIVO CSV
+void csv_secuencial(long *original_histogram, long *equalized_histogram);
+//PROCESOS SECUENCIALES PARA PROCESARLA IMAGEN 
+void cdf_SECUENCIAL(long *cdf, long *original_histogram);
+void equalized_cdf_SECUENCIAL(long *cdf, long minimum, long size);
+void image_SEQUENTIAL(unsigned char *original_image, unsigned char *new_image, int channels, long *equalized_cdf, long size);
+void histogram_SEQUENTIAL(long *original_histogram, unsigned char *image, long size, int channels);
 
-long *histogram_space(unsigned char *image, long size, int channels);
-long *cumulative_distribution_function_SEQUENTIAL(long *histogram);
-long *equalized_value_distribution_SEQUENTIAL(long *cummulative_value, long min, long  size);
-unsigned char *equalized_Image(unsigned char  *first_Image, int channels, long *equalized_value, long size);
- //csv
-void csv(char *image_name, long *histogram, long *equalized_histogram, char *suffix);
-char *create_new_file(char *image_source, char *suffix);
-char *file_name(char *image_source);
+//----------------PARALELO---------------// 
+//#########################################
+//GENERA ARCHIVO CSV
+void csv_parallel(long *original_histogram, long *equalized_histogram);
+//PROCESOS PARALELOS PARA PROCESARLA IMAGEN 
+void equalized_cdf_PARALLEL(long *cdf, long minimum, long size);
+void image_PARALLEL(unsigned char *original_image, unsigned char *new_image, int number_of_channels, long *equalized_cdf, long size);
+void histogram_PARALLEL(long *original_histogram, unsigned char *image, long size, int number_of_channels);
 
-int main(int argc, char *argv[]){
-    if(argc < 2){
-        printf("Using wrong size of a image");
+///////////////////////////////////////////
+int main(int argc, char *argv[])
+{
+    if (argc < 2){
+        printf("ERROR AL PASAR ARGUMENTO");
         return -1;
     }
 
     char *image_source = argv[1];
-    int width, height, channels; 
-    unsigned char *image = stbi_load(image_source, &width, &height, &channels, 0);
-    double tIni, tSecuencia, tParalelo, tFinal; 
+    int width, height, channels;
 
-    if(image = NULL){
-        printf("There is no image");
-        return -1; 
-    }
-    
-    //de aqui para adelante es secuencial 
-
-    
-
-    return 0; 
-
-
-}
-
-//Creamos arreglos tipo UC y LONG para poder trabajar con la informacion 
-unsigned char *empty_array_UC(long size){
-    unsigned char *new_array_UC = malloc(sizeof(unsigned char) * size);
-    for(int i = 0; i < size; i++ ){
-        new_array_UC[i] = 0;
-    }
-    return new_array_UC; 
-}
-
-long *empty_array_LONG(long size){
-    long *new_array_LONG = malloc(sizeof(long) * size);
-    for(int i = 0; i < size; i++ ){
-        new_array_LONG[i] = 0;
-    }
-    return new_array_LONG; 
-}
- 
-//----------SECUENCIALL------------
-long *histogram_space(unsigned char *image, long size, int channels){
-    long *new_histogram = empty_array_LONG(COLOR_VALUE); 
-    for(int i = 0; i < size * channels; i=i+channels){
-        new_histogram[(int)image[i]]; //Aqui decimos que el valor del pixel en la imagen será el valor asignado en el new histogram
-    }
-    return new_histogram; 
-}
-
-long *cumulative_distribution_function_SEQUENTIAL(long *histogram){
-    long *cdf = empty_array_LONG(COLOR_VALUE);
-    for(int i = 1; i< COLOR_VALUE; i++){
-        cdf[i] = histogram[i-1] + cdf[i]; //sumas los valores 
-    }
-    return  cdf; 
-}
-
-long min_cdf_SEQUENTIAL(long *cdf){
-    long min = cdf[0]; 
-    for(int i = 0; i < COLOR_VALUE; i++){
-        if(min > cdf[i]){
-            min = cdf[i];
-        }
-    }
-    return min; 
-}
-
-long *equalized_value_distribution_SEQUENTIAL(long *cummulative_value, long min, long  size){
-    long *equilizeImage_value = empty_array_LONG(COLOR_VALUE);
-    double factor = ((double) COLOR_VALUE - 2) / ((double) size - min); 
-    for(int i=0; i<COLOR_VALUE; i++){
-        equilizeImage_value[i] = round( ((double)(cummulative_value[i] - min) * factor) + 1); //SI esto no funciona separarlo en una variable
-    }
-    return equilizeImage_value; 
-}
-
-unsigned char *equalized_Image(unsigned char  *first_Image, int channels, long *equalized_value, long size){
-    unsigned char *second_Image = empty_array_UC(size* channels); 
-    for(int i = 0; i < size*channels; i ++){
-        unsigned char original_image_value = first_Image[i]; 
-        if(i % channels == 0){
-            second_Image[i] = (unsigned char) equalized_value[original_image_value];
-        }else{
-            second_Image[i] = (unsigned char) original_image_value;
-        }
-        return second_Image; 
-    }
-}
-
-double final_sequential_equalization(unsigned char *image, int width, int height, int channels, char *name_of_image){
-    
     double t1 = omp_get_wtime();
-
-    long size = height * width; 
-    long *image_histogram = histogram_space(image, size, channels);
-    long *cdf  = cumulative_distribution_function_SEQUENTIAL(image_histogram); //
-    long minimun_cdf = min_cdf_SEQUENTIAL(cdf);
-    long *cumulative_distribution = equalized_value_distribution_SEQUENTIAL(cdf, minimun_cdf, size);
-    unsigned char *equalizedImage = equalized_Image(image, channels, cumulative_distribution, size);
-    long *equalized_histogram = histogram_space(equalizedImage, size, channels);
-
+    unsigned char *image = stbi_load(image_source, &width, &height, &channels, 0);
     double t2 = omp_get_wtime();
 
-    csv(); 
-    char *first_file_name = file_name(image_source); 
-    char *new_file = create_new_file(first_file_name, "_eq_sequential.jpg");
-    stbi_write_jpg(new_file, width, height, channels, equalizedImage, QUALITY);
-    csv(new_histogram, equalized_histogram, "sequential");
+
+    printf("-------IMAGEN LEIDA----------");
+    char *name_UNsuffix = filename_UNsuffix(image_source);
+    printf("Nombre de la imagen: %s\n", name_UNsuffix);
+    printf("Tiempo de carga: %f\n", t2 - t1);
+    printf("ANCHO: %d\t ALTO: %d\n", width, height);
+    printf("Numero de canales: %d\n", channels);
+    printf("Tamano: %d\n", (width * height)/1000);
+
+    double sequential_time = equalize_image_sequential(image, width, height, channels, name_UNsuffix);
+    double parallel_time = equalize_image_parallel(image, width, height, channels, name_UNsuffix);
+
+    int total_processors = omp_get_num_procs();
+    double speedup = sequential_time / parallel_time;
+    double efficiency = speedup / total_processors;
+    double overhead = parallel_time - sequential_time / total_processors;
+
+    printf("\nNumero de procesadores: %d\n", total_processors);
+    printf("SECUENCIAL: %f\t PARALELO: %f\n", sequential_time, parallel_time);
+    printf("Speedup: %f\n", speedup);
+    printf("Eficiencia: %f\n", efficiency);
+    printf("Overhead: %f\n", overhead);
 
     stbi_image_free(image);
-    stbi_image_free(equalizedImage);
+    free(name_UNsuffix);
+    return 0;
+}
 
+
+unsigned char *empty_array_UC(long size){
+    unsigned char *empty_array_UC = malloc(sizeof(unsigned char) * size);
+    for (int i = 0; i < size; ++i){
+        empty_array_UC[i] = 0;
+    }
+    return empty_array_UC;
+}
+long *empty_array_LONG(long size){
+    long *empty_array_LONG = malloc(sizeof(long) * size);
+    for (int i = 0; i < size; ++i){
+        empty_array_LONG[i] = 0;
+    }
+    return empty_array_LONG;
+}
+
+long min_cdf(long *histogram){
+    for (int i = 0; i < COLOR_VALUE; ++i){
+        if (histogram[i] != 0) return histogram[i];
+    }
+    return -1;
+}
+
+char *filename_UNsuffix(char *path){
+    char *filename_UNsuffix = strrchr(path, '/');
+    if (filename_UNsuffix == NULL) filename_UNsuffix = path;
+    else filename_UNsuffix++;
+    return strtok(filename_UNsuffix, ".");
+}
+
+char *new_file(char *original, char *suffix)
+{
+    char *new_file = malloc(sizeof(char) * 1000);
+    snprintf(new_file, sizeof(char) * 1000, "%s%s", original, suffix);
+    return new_file;
+}
+
+//---------------SECUENCIAL-----------------
+
+void csv_secuencial(long *original_histogram, long *equalized_histogram){   
+    FILE *csv = fopen("histograma_secuencial.csv", "w+");
+    for (int i = 0; i < COLOR_VALUE; i++){
+        fprintf(csv, "%d,%ld,%ld\n", i, original_histogram[i], equalized_histogram[i]);
+    }
+    fclose(csv);
+}
+
+void cdf_SECUENCIAL(long *cdf, long *original_histogram){
+    cdf[0] = original_histogram[0];
+    for (int i = 1; i < COLOR_VALUE; ++i)
+    {
+        cdf[i] = cdf[i - 1] + original_histogram[i];
+    }
+}
+
+void equalized_cdf_SECUENCIAL(long *cdf, long minimum, long size)
+{
+    double numerator = (double) COLOR_VALUE - 2;
+    double denominator = (double) size - minimum;
+
+    for (int i = 0; i < COLOR_VALUE; ++i)
+    {
+        cdf[i] = (long) round( (double)(cdf[i] - minimum) * (numerator / denominator))+ 1;
+    }
+}
+
+double equalize_image_sequential(unsigned char *image, int width, int height, int channels, char *name_UNsuffix){
+    long size = width * height;
+    long *original_histogram = empty_array_LONG(COLOR_VALUE);
+    long *new_histogram = empty_array_LONG(COLOR_VALUE);
+    long *cdf = empty_array_LONG(COLOR_VALUE);
+
+    unsigned char *new_image = empty_array_UC(size * channels);
+
+    double t1 = omp_get_wtime();
+    histogram_SEQUENTIAL(original_histogram, image, size, channels);
+    cdf_SECUENCIAL(cdf, original_histogram);
+    long min_cdf_value = min_cdf(cdf);
+    equalized_cdf_SECUENCIAL(cdf, min_cdf_value, size);
+    image_SEQUENTIAL(image, new_image, channels, cdf, size);
+    histogram_SEQUENTIAL(new_histogram, new_image, size, channels);
+    double t2 = omp_get_wtime();
+
+    double t1_csv = omp_get_wtime();
+    csv_secuencial(original_histogram, new_histogram);
+    double t2_csv = omp_get_wtime();
+
+    char *new_sequential_name = new_file(name_UNsuffix, "_eq_sequential.jpg");
+
+    double t1_image = omp_get_wtime();
+    stbi_write_jpg(new_sequential_name, width, height, channels, new_image, QUALITY_IMAGE);
+    double t2_image = omp_get_wtime();
+
+    printf("\nGENERACION CSV (secuencial): %f\n", t2_csv - t1_csv);
+    printf("GENERACION IMAGEN: (secuencial): %f\n", t2_image - t1_image);
+
+    free(original_histogram);
     free(new_histogram);
     free(cdf);
-    free(cumulative_distribution);
-    free(equalizedImage);
-    free(first_file_name);
-    free(new_file);
+    free(new_image);
+
+    return t2 - t1;
 }
-//OBTENEMOS PARA CVF
 
-void csv(char *image_name, long *histogram, long *equalized_histogram, char *suffix){
-    //Creamos el archivo
-    char *name_of_image = create_new_file("out/", image_name); 
-    name_of_image = create_new_file(name_of_image, "_histogram");
-    name_of_image = create_new_file(name_of_image, suffix); 
-    name_of_image = create_new_file(name_of_image, ".csv"); 
-    FILE *csv_file = fopen(name_of_image, "w+");
-
-    for(int i = 0; i < COLOR_VALUE; i++){
-        fprintf(csv_file, "%d, %ld,  %ld\n", i, histogram[i], equalized_histogram[i]);
+void image_SEQUENTIAL(unsigned char *original_image, unsigned char *new_image, int channels, long *equalized_cdf, long size){
+    for (int i = 0; i < size * channels; i += channels){
+        unsigned char original_value = original_image[i];
+        for (int j = i; j < channels + i; ++j){
+            new_image[j] = (unsigned char) equalized_cdf[original_value];
+        }
     }
-    fclose(csv_file); 
 }
 
-
-char *file_name(char *image_source){
-    //ontenemos el nombre de la imagen
-    char *name_of_image = strrchr(image_source, '/'); //bussca la ultima ocurrencia
-    if(name_of_image == NULL){
-        name_of_image = image_source; 
-    } else{
-        name_of_image ++; 
+void histogram_SEQUENTIAL(long *original_histogram, unsigned char *image, long size, int channels){
+    for (int i = 0; i < size * channels; i += channels){
+        original_histogram[image[i]]++;
     }
-    return strtok(name_of_image, ".");  //Rinoe la cadena 
 }
 
-char *create_new_file(char *image_source, char *suffix){
-    char *new_file = malloc(sizeof(char)*1000);
-    snprintf(new_file, sizeof(char)*1000, "%s%s", image_source, suffix);//print the output as a buffer
-    return new_file; 
+//-----------------------PARALELO-------------------------
+void csv_parallel(long *original_histogram, long *equalized_histogram){   
+    FILE *csv_parallel = fopen("histograma_parallel.csv", "w+");
+    for (int i = 0; i < COLOR_VALUE; i++){
+        fprintf(csv_parallel, "%d,%ld,%ld\n", i, original_histogram[i], equalized_histogram[i]);
+    }
+    fclose(csv_parallel);
+}
+
+void equalized_cdf_PARALLEL(long *cdf, long minimum, long size){
+    double numerator = (double) COLOR_VALUE - 2;
+    double denominator = (double) size - minimum;
+    #pragma omp parallel for
+    for (int i = 0; i < COLOR_VALUE; ++i)
+    {
+        cdf[i] = (long) round( (double)(cdf[i] - minimum) * (numerator / denominator)) + 1;
+    }
+}
+
+double equalize_image_parallel(unsigned char *image, int width, int height, int number_of_channels, char *name_UNsuffix)
+{
+    long size = width * height;
+    long *original_histogram = empty_array_LONG(COLOR_VALUE);
+    long *new_histogram = empty_array_LONG(COLOR_VALUE);
+    long *cdf = empty_array_LONG(COLOR_VALUE);
+    unsigned char *new_image = empty_array_UC(size * number_of_channels);
+
+    int total_processors = omp_get_num_procs();
+    omp_set_num_threads(total_processors);
+
+    double t1 = omp_get_wtime();
+    histogram_PARALLEL(original_histogram, image, size, number_of_channels);
+    cdf_SECUENCIAL(cdf, original_histogram);
+    long min_cdf_value = min_cdf(cdf);
+    equalized_cdf_PARALLEL(cdf, min_cdf_value, size);
+    image_PARALLEL(image, new_image, number_of_channels, cdf, size);
+    histogram_PARALLEL(new_histogram, new_image, size, number_of_channels);
+    double t2 = omp_get_wtime();
+
+    double t1_csv = omp_get_wtime();
+    csv_parallel(original_histogram, new_histogram);
+    double t2_csv = omp_get_wtime();
+
+    char *new_parallel_name = new_file(name_UNsuffix, "_eq_parallel.jpg");
+
+    double t1_image = omp_get_wtime();
+    stbi_write_jpg(new_parallel_name, width, height, number_of_channels, new_image, QUALITY_IMAGE);
+    double t2_image = omp_get_wtime();
+
+    printf("\nPARALELO CSV: %f\n", t2_csv - t1_csv);
+    printf("IMAGEN PARALALELA: %f\n", t2_image - t1_image);
+
+    free(original_histogram);
+    free(new_histogram);
+    free(cdf);
+    free(new_image);
+
+    return t2 - t1;
+}
+
+void image_PARALLEL(unsigned char *original_image, unsigned char *new_image, int number_of_channels, long *equalized_cdf, long size){
+    #pragma omp parallel for
+    for (int i = 0; i < size * number_of_channels; i += number_of_channels){
+        unsigned char original_value = original_image[i];
+        for (int j = i; j < number_of_channels + i; ++j)
+        {
+            new_image[j] = (unsigned char) equalized_cdf[original_value];
+        }
+    }
+}
+
+void histogram_PARALLEL(long *original_histogram, unsigned char *image, long size, int number_of_channels){
+    #pragma omp parallel for reduction(+:original_histogram[:COLOR_VALUE])
+    for (int i = 0; i < size * number_of_channels; i += number_of_channels){
+        original_histogram[image[i]]++;
+    }
 }
